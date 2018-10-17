@@ -22,47 +22,54 @@ CImg<> delete_below_intensity(CImg<> img, int intensity){
 	return img;
 }
 
-CImg<> extract_region(CImg<> img, voxel voxel, float opacity, float sigma){
-    printf("draw_fill(%d,%d,%d) opacity:%f tolerance:%f\n", voxel.x, voxel.y, voxel.z, opacity, sigma);
-    unsigned char color[] = { 255, 255, 255};
-    CImg<> region = img;
-
-    img.draw_fill(voxel.x, voxel.y, voxel.z, color, opacity, region, sigma, false);
+CImg<> extract_region(CImg<> img, Voxel voxel, float opacity, float tolerance){
+    printf("draw_fill(%d,%d,%d) opacity:%d tolerance:%d\n", voxel.x, voxel.y, voxel.z, (int)opacity, (int)tolerance);
+    unsigned char color[] = { 255, 255, 255 };
+    CImg<> region;
+    img.draw_fill(voxel.x, voxel.y, voxel.z, color, opacity, region, tolerance);
     int counter = 0;
-    for(int i = 0; i < img.width()*img.height()*img.depth(); i++) {
-        if(region[i] > 0) 
-        	counter++;
+    for(int i=0; i < img.width()*img.height()*img.depth(); i++) {
+        if(region[i] != 0) 
+            counter++;
     }
-    printf("%d, end drawfill\n", counter);
+    printf("Counter: %d\n", counter);
     return region;
 }
 
-void draw_graph(CImg<> image){
-	int y = 50;
-	CImg<> visu(500,400,1,3,0);
-	CImgDisplay draw_disp(visu,"Intensity profile");
-	const unsigned char red[] = { 255,0,0 }, green[] = { 0,255,0 }, blue[] = { 0,0,255 };
-
-	while(!draw_disp.is_closed()){		
-		visu.fill(0).draw_graph(image.get_crop(0,y,0,0,image.width()-1,y,0,0),red,1,1,0,255,0);
-		visu.draw_graph(image.get_crop(0,y,0,1,image.width()-1,y,0,1),green,1,1,0,255,0);
-		visu.draw_graph(image.get_crop(0,y,0,2,image.width()-1,y,0,2),blue,1,1,0,255,0).display(draw_disp);
-	}
+int get_voxel_amount(CImg<> region){
+    int counter = 0;
+    for(int i=0; i < region.width()*region.height()*region.depth(); i++) {
+        if(region[i] != 0) 
+            counter++;
+    }
+    return counter;
 }
+
+CImg<> compute_graph(CImg<> img, Voxel voxel, float opacity, int nbOfSamples){
+    CImg<> graph_img(1,nbOfSamples,1,1,0);
+    CImg<> tmp;
+    for(int i=0; i<nbOfSamples; i++){
+        tmp = extract_region(img, voxel, opacity, i);
+        int amount = get_voxel_amount(tmp);
+        printf("Amount: %d\n", amount);
+        graph_img(0,i) = amount;
+    }
+    return graph_img;
+}
+
 
 int main(int argc, char** argv){
 
-	if(argc < 5){
-		printf("Usage: filename x y z\n");
+	if(argc != 4){
+		printf("Usage: filename opacity tolerance\n");
 		exit(1);
 	}
 
 	char* filename = argv[1];
-	int vx = atoi(argv[2]);
-	int vy = atoi(argv[3]);
-	int vz = atoi(argv[4]);
+	int opacity = atoi(argv[2]);
+	int tolerance = atoi(argv[3]);
 	float voxelSize[3];
-	CImg<> img;
+	CImg<> img, selectedImg;
 	vector<voxel> neighbors;
 	vector<voxel> saved;
 	int intensity;
@@ -70,7 +77,10 @@ int main(int argc, char** argv){
 	img.load_analyze(filename, voxelSize);
 
 	CImgDisplay main_display(img, "Liver segmentation");
-    int slice_index = 25;
+    CImg<> visu(500, 400, 1, 3, 0);
+    const unsigned char red[] = {255, 0, 0};
+    CImgDisplay graph_display(visu, "Graph");
+    int slice_index = 21;
     CImg<> slice = img.get_slice(slice_index);   
     main_display.display(slice);
 
@@ -115,12 +125,25 @@ int main(int argc, char** argv){
         	slice = img.get_slice(slice_index);
         	main_display.display(slice);
 
-            img = extract_region(img, voxel, vx/100, vy);
+            selectedImg = extract_region(img, voxel, opacity, tolerance);
 
-			main_display.display(img.get_slice(slice_index));
-        }
-        else if(main_display.is_key0()){
-        	draw_graph(img);
+			main_display.display(selectedImg.get_slice(slice_index)); 
+
+            int nbOfSamples = 30;
+            CImg<> graph_img = compute_graph(img, voxel, opacity, nbOfSamples);
+
+            graph_img.display_graph(graph_display, 2, 1, "Tolerance", 0, nbOfSamples, "NbVox", 0, 200000, true);
+        
+            while(!graph_display.is_closed()){
+                if(graph_display.is_keyS()){
+                    tolerance = graph_display.mouse_x() * ((float)nbOfSamples/graph_display.width());
+                    graph_display.close();
+                }
+            }
+
+            selectedImg = extract_region(img, voxel, opacity, tolerance);
+            main_display.display(selectedImg.get_slice(slice_index)); 
+            main_display.display(selectedImg.get_slice(slice_index)); 
         }
 	}
 
