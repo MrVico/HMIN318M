@@ -1,4 +1,4 @@
-CXXFLAGS      = -O2 #-Wall 
+CXXFLAGS      = -O2 -w#-Wall  
 LFLAGS        = 
 LIBS          = -L/usr/X11R6/lib -lm -lpthread -lX11
 INCPATH       = -I../cimg -I.

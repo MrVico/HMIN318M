@@ -20,51 +20,71 @@ enum transformationType {affine, rigid, similitude};
 enum Metric {SSD, NCC};
 
 
-
 void computeCorrespondences(MESH& mesh, const CImg<float> &dist,const float l)
 {
     unsigned int nbpoints=dist.height();
     unsigned int S=dist.width()/2;
 
-
     for(unsigned int i=0;i<nbpoints;i++)
     {
-
-        /// A COMPLETER
         float p[3];
-        mesh.getPoint(p,i);
-        mesh.setCorrespondence(p,i);
+        float tmpP[3];
+        float n[3];
+        mesh.getPoint(p, i);
+        mesh.getNormal(n, i);
+        int x;
+        float min = 1000;
+        // On cherche la distance minimale
+        for(int j=0; j<dist.width(); j++){
+            if(dist(j, i) < min){
+                min = dist(j, i);
+                x = j;
+            }
+        }
+        for(int a=0; a<3; a++){
+            tmpP[a] = p[a] + x * l * n[a];
+        }
+        mesh.setCorrespondence(tmpP, i);
     }
-
+    
 }
 
 
 CImg<float> computeDistance(const CImg<unsigned char> &sourceProf,const CImg<unsigned char> &targetProf,const Metric metric)
 {
     unsigned int nbpoints=sourceProf.height();
+    // 15
     unsigned int N=sourceProf.width();
-    unsigned int S=(targetProf.width()-sourceProf.width())/2;
+    // 10               35                  15
+    int S=(targetProf.width()-sourceProf.width())/2;
 
-    CImg<float> dist(2*S,nbpoints);
+    CImg<float> dist(2*S, nbpoints);
     dist.fill(0);
-    int sum;
 
-    if(metric==SSD)
+    float sum;
+
+    if(metric == SSD)
     {
-        for(int i=0; i<nbpoints; i++){
-            sum = 0;
-            for(int j=0; j<N; j++){
-                sum += math.pow(targetProf[i] - sourceProf[i], 2);
+        for(int y=0; y<nbpoints; y++){
+            for(int i=-S; i<S; i++){
+                sum = 0;
+                // Calcul de la somme des differences au carre
+                for(int x=0; x<N; x++){
+                    // +S dans target car l'image deborde de 10 a gauche et a droite
+                    sum += pow(targetProf(x+i+S, y) - sourceProf(x, y), 2);
+                }
+                sum /= 2*S;
+                // On assigne cette somme divisee par S 
+                dist(i+S, y) = sum;
             }
         }
     }
     else // NCC
     {
 
-        /// A COMPLETER
     }
 
-    // dist.display();
+    //dist.display();
 
     return dist;
 }
@@ -101,7 +121,7 @@ CImg<unsigned char> computeProfiles(const MESH& mesh, const IMG<unsigned char,fl
         }
     }
 
-    prof.display();
+    //prof.display();
 
     return prof;
 }
