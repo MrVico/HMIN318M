@@ -47,29 +47,43 @@ CImg<float> computeDistance(const CImg<unsigned char> &sourceProf,const CImg<uns
 
     CImg<float> dist(2*S,nbpoints);
     dist.fill(0);
-    int sum;
+
+    float value; 
 
     if(metric==SSD)
     {
-        for(int i=0; i<nbpoints; i++){
-            sum = 0;
-            for(int j=0; j<N; j++){
-                sum += math.pow(targetProf[i] - sourceProf[i], 2);
+        for(int x=0; x<N; x++){
+            for(int y=0; y<nbpoints; y++){
+                // Calcul de la distance entre le profil source
+                // et une partie du profil cible i [-S,S[
+                for(int i=-S; i<S; i++){
+                    value = pow(targetProf(x-i, y) - sourceProf[i], 2);
+                    dist(i+S, y) = value;
+                }
             }
         }
     }
     else // NCC
     {
-
-        /// A COMPLETER
+        for(int x=0; x<N; x++){
+            for(int y=0; y<nbpoints; y++){
+                // Calcul de la distance entre le profil source
+                // et une partie du profil cible i [-S,S[
+                for(int i=-S; i<S; i++){
+                    value = pow(targetProf(x-i, y) - sourceProf[i], 2);
+                    dist(i+S, y) = value;
+                }
+            }
+        }
     }
 
-    // dist.display();
+    dist.display();
 
     return dist;
 }
 
-CImg<unsigned char> computeProfiles(const MESH& mesh, const IMG<unsigned char,float>& img, const unsigned int Ni, const unsigned int No, const float l,const unsigned int interpolationType=1)
+CImg<unsigned char> computeProfiles(const MESH& mesh, const IMG<unsigned char,float>& img, const unsigned int Ni, 
+    const unsigned int No, const float l,const unsigned int interpolationType=1)
 {
     CImg<unsigned char> prof(Ni+No,mesh.getNbPoints());
 
@@ -87,7 +101,6 @@ CImg<unsigned char> computeProfiles(const MESH& mesh, const IMG<unsigned char,fl
                 tmpP[a] = p[a] - n[a] * l * j;
             }
             // On assigne la valeur au bon index, le plus en bas sera le plus à gauche
-            //prof[i*(Ni+No) + (Ni-j-1)] = img.getValue(tmpP, interpolationType);
             prof(Ni-j-1, i) = img.getValue(tmpP, interpolationType);
         }
         // On monte la normale
@@ -101,7 +114,7 @@ CImg<unsigned char> computeProfiles(const MESH& mesh, const IMG<unsigned char,fl
         }
     }
 
-    prof.display();
+    //prof.display();
 
     return prof;
 }
