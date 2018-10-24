@@ -41,6 +41,7 @@ void computeCorrespondences(MESH& mesh, const CImg<float> &dist,const float l)
                 x = j;
             }
         }
+        // On applique la transformation au point
         for(int a=0; a<3; a++){
             tmpP[a] = p[a] + x * l * n[a];
         }
@@ -61,27 +62,57 @@ CImg<float> computeDistance(const CImg<unsigned char> &sourceProf,const CImg<uns
     CImg<float> dist(2*S, nbpoints);
     dist.fill(0);
 
-    float sum;
-
     if(metric == SSD)
     {
+        float sum;
         for(int y=0; y<nbpoints; y++){
             for(int i=-S; i<S; i++){
                 sum = 0;
                 // Calcul de la somme des differences au carre
                 for(int x=0; x<N; x++){
-                    // +S dans target car l'image deborde de 10 a gauche et a droite
+                    // +S dans target car l'image deborde de S a gauche et a droite
                     sum += pow(targetProf(x+i+S, y) - sourceProf(x, y), 2);
                 }
-                sum /= 2*S;
-                // On assigne cette somme divisee par S 
-                dist(i+S, y) = sum;
+                // On veut avoir la moyenne de la somme
+                dist(i+S, y) = sum / (2*S);
             }
         }
     }
     else // NCC
     {
+        float aveS = 0;
+        float aveT = 0;
+        float upperCC = 0;
+        float lowerLeftCC = 0;
+        float lowerRightCC = 0;
+        for(int y=0; y<nbpoints; y++){
+            // Calcul de la moyenne pour la source
+            aveS = 0;
+            for(int z=0; z<sourceProf.width(); z++){
+                aveS += sourceProf(z, y);
+            }
+            aveS = aveS / sourceProf.width();
+            // Calcul de la moyenne pour la target
+            aveT = 0;
+            for(int z=0; z<targetProf.width(); z++){
+                aveT +=  targetProf(z, y);
+            }
+            aveT = aveT / targetProf.width();
+            for(int i=-S; i<S; i++){
+                upperCC = 0;
+                for(int x=0; x<N; x++){
+                    upperCC += (targetProf(x+i+S, y) - aveT) * (sourceProf(x, y) - aveS);
+                }
+                lowerLeftCC = 0;
+                lowerRightCC = 0;
+                for(int x=0; x<N; x++){
+                    lowerLeftCC += pow(targetProf(x+i+S, y) - aveT, 2);
+                    lowerRightCC += pow(sourceProf(x, y) - aveS, 2);
+                }
 
+                dist(i+S, y) = (upperCC) / sqrt(lowerLeftCC * lowerRightCC);
+            }
+        }
     }
 
     //dist.display();
